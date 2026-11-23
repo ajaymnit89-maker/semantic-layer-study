@@ -2,7 +2,7 @@
 
 An empirical study of large language models writing SQL for public transit performance questions, using MTA NYC Transit paratransit (Access-A-Ride) open data.
 
-**Status:** design done, gold set v1 (32 questions) done, pilot runs pending.
+**Status:** gold set v1 (32 questions) done. Haiku run done in all four conditions with 3 repeats: 77% (raw_schema), 86% (schema_dict), 100% (semantic), 100% (semantic_fewshot). Held-out questions, Sonnet and Opus runs, and failure labeling are next. Plain-language summary: [Project_Summary.pdf](Project_Summary.pdf).
 **Author:** Ajay Sharma. Code for the assistant under test: [transit-sql](https://github.com/ajaymnit89-maker/transit-sql).
 
 ## Motivation
@@ -41,7 +41,7 @@ None of this is visible from column names alone.
 | Repeats | 3 per condition (model sampling is not deterministic) |
 | Pipeline | identical for all conditions: one structured-output call, one repair attempt on SQL error |
 | Metric | execution accuracy: the result set must contain the gold result (column names and order ignored, numbers within rounding tolerance); unanswerable items must be declined |
-| Statistics | 95% Wilson intervals; exact McNemar test on paired (question, repeat) outcomes vs. `raw_schema` |
+| Statistics | 95% Wilson intervals; exact McNemar test vs. `raw_schema`, run twice: per question (majority vote over repeats, n = 32, the main test) and per (question, repeat) pair (n = 96, secondary, because repeats of one question are correlated) |
 | Error analysis | every failure hand-labeled into 8 categories (see `analyze.py`) |
 | Cost | input/output tokens per call, converted to dollars |
 
