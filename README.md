@@ -3,7 +3,7 @@
 An empirical study of large language models writing SQL for public transit performance questions, using MTA NYC Transit paratransit (Access-A-Ride) open data.
 
 **Status:** design done, gold set v1 (32 questions) done, pilot runs pending.
-**Author:** Ajay Sharma. Code for the assistant under test: [`../transit-sql`](../transit-sql).
+**Author:** Ajay Sharma. Code for the assistant under test: [transit-sql](https://github.com/ajaymnit89-maker/transit-sql).
 
 ## Motivation
 
@@ -47,7 +47,14 @@ None of this is visible from column names alone.
 
 ## How to run
 
-1. Nothing to set up if the `claude` command (Claude Code) is logged in with your Claude subscription: runs go through it. To use the paid API instead, put a key in `../transit-sql/.env`. Use the same backend for every run in one comparison, and note it in the paper.
+0. Clone this repo and [transit-sql](https://github.com/ajaymnit89-maker/transit-sql) into the same parent folder. The study imports transit-sql from `../transit-sql` and reads its semantic layer, gold questions and data from that checkout, so it can't be installed from PyPI or a git URL. Then run `uv sync` in this repo. The DuckDB file builds itself from transit-sql's parquet files on first use.
+   ```
+   git clone https://github.com/ajaymnit89-maker/transit-sql.git
+   git clone https://github.com/ajaymnit89-maker/semantic-layer-study.git
+   cd semantic-layer-study
+   uv sync
+   ```
+1. Nothing else to set up if the `claude` command (Claude Code) is logged in with your Claude subscription: runs go through it. To use the paid API instead, put a key in `../transit-sql/.env`. Use the same backend for every run in one comparison, and note it in the paper.
 2. Pilot on 5 questions to check everything works (costs cents):
    ```
    uv run python -m semantic_layer_study.run --models claude-haiku-5-5 --repeats 1 --ids q01 q08 q17 q24 q31
