@@ -1,0 +1,24 @@
+id,mode,model,tags,correct,attempts,error,input_tokens,output_tokens,seconds,sql,notes,repeat
+q01,raw_schema,claude-haiku-5-5,basic,True,1,,2339,274,4.77,SELECT SUM(trips) AS trips_completed_2025 FROM trips_daily WHERE service_date >= DATE '2025-01-01' AND service_date < DATE '2026-01-01';,"Assumes ""completed trips"" means the trips column in trips_daily summed over all boroughs and provider types for service dates in calendar 2025.",1
+q08,raw_schema,claude-haiku-5-5,"otp_standard,ratio_of_sums",False,1,,2338,350,2.95,"SELECT ROUND(100.0 * SUM(ontime_pickups) / NULLIF(SUM(total_pickups), 0), 1) AS pickup_on_time_pct FROM pickup_otp_daily WHERE service_date >= DATE '2025-01-01' AND service_date < DATE '2026-01-01'","Assumes on-time rate is total on-time pickups divided by total pickups across all providers, boroughs, and standards for calendar year 2025, with no weighting or filtering by standard.",1
+q17,raw_schema,claude-haiku-5-5,"cross_table,ratio_of_sums",True,1,,2347,758,4.17,"WITH c AS (
+  SELECT SUM(complaints) AS complaints
+  FROM complaints_daily
+  WHERE opened_date >= DATE '2024-01-01' AND opened_date < DATE '2025-01-01'
+),
+t AS (
+  SELECT SUM(trips) AS trips
+  FROM trips_daily
+  WHERE service_date >= DATE '2024-01-01' AND service_date < DATE '2025-01-01'
+)
+SELECT
+  c.complaints AS complaints_2024,
+  t.trips AS trips_2024,
+  ROUND(1000.0 * c.complaints / t.trips, 1) AS complaints_per_1000_trips
+FROM c, t;","Assumes complaints and trips are summed across all provider types, categories, and boroughs for calendar 2024, and that the two tables are compared as totals rather than joined row-by-row to avoid fan-out.",1
+q24,raw_schema,claude-haiku-5-5,rate_not_count,True,1,,2344,485,3.34,"SELECT ROUND(AVG(no_shows_per_1000), 1) AS avg_no_shows_per_1000
+FROM provider_no_shows_monthly
+WHERE LOWER(provider_type) = 'primary'
+  AND month >= DATE '2023-01-01'
+  AND month < DATE '2024-01-01';","Assumes the no-show rate is the simple average of the monthly no_shows_per_1000 values for 2023 (unweighted, since no trip counts exist in this table), with provider_type matched case-insensitively to 'Primary'.",1
+q31,raw_schema,claude-haiku-5-5,coverage,False,1,,2335,441,3.55,"SELECT ROUND(SUM(ride_time_min) * 1.0 / SUM(trips), 1) AS avg_ride_time_min FROM ride_time_monthly WHERE month >= DATE '2025-01-01' AND month < DATE '2026-01-01'","Assumed ride_time_min is the total ride minutes per group (month, provider, peak hour, borough, on-time flag), so the 2025 average is total minutes divided by total trips, not an average of the row values.",1

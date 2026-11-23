@@ -1,0 +1,7 @@
+model,unit,n,mode,vs,only_mode_correct,only_baseline_correct,p_value
+claude-haiku-5-5,question_repeat,96,schema_dict,raw_schema,10,1,0.0117
+claude-haiku-5-5,question_repeat,96,semantic,raw_schema,22,0,0.0
+claude-haiku-5-5,question_repeat,96,semantic_fewshot,raw_schema,22,0,0.0
+claude-haiku-5-5,question,32,schema_dict,raw_schema,4,0,0.125
+claude-haiku-5-5,question,32,semantic,raw_schema,8,0,0.0078
+claude-haiku-5-5,question,32,semantic_fewshot,raw_schema,8,0,0.0078

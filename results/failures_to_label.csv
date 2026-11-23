@@ -1,0 +1,238 @@
+id,model,mode,repeat,tags,error,sql,notes,error_type
+q08,claude-haiku-5-5,raw_schema,1,"otp_standard,ratio_of_sums",,"SELECT ROUND(100.0 * SUM(ontime_pickups) / SUM(total_pickups), 1) AS pickup_otp_pct_2025 FROM pickup_otp_daily WHERE service_date >= DATE '2025-01-01' AND service_date < DATE '2026-01-01';","Assumes on-time performance is total on-time pickups divided by total pickups across all providers, standards, and boroughs for service dates in calendar year 2025.",
+q10,claude-haiku-5-5,raw_schema,1,"otp_standard,ratio_of_sums",,"SELECT
+  borough,
+  SUM(total_pickups) AS total_pickups,
+  SUM(ontime_pickups) AS ontime_pickups,
+  ROUND(100.0 * SUM(ontime_pickups) / NULLIF(SUM(total_pickups), 0), 1) AS otp_pct
+FROM pickup_otp_daily
+WHERE service_date >= DATE '2025-01-01'
+  AND service_date < DATE '2026-01-01'
+GROUP BY borough
+ORDER BY otp_pct ASC NULLS LAST","Assumes ""2025"" means service_date in calendar 2025, on-time % is total on-time pickups over total pickups (pooled across provider types and standards), and worst first means lowest OTP first.",
+q11,claude-haiku-5-5,raw_schema,1,"otp_standard,ratio_of_sums",,"SELECT provider_type AS provider, SUM(total_pickups) AS total_pickups, SUM(ontime_pickups) AS ontime_pickups, ROUND(100.0 * SUM(ontime_pickups) / NULLIF(SUM(total_pickups), 0), 1) AS ontime_pct FROM pickup_otp_daily WHERE service_date >= DATE '2025-01-01' AND service_date < DATE '2026-01-01' AND provider_type IN ('Primary', 'Broker') GROUP BY provider_type ORDER BY provider_type;","Assumes provider_type values are exactly 'Primary' and 'Broker', and that on-time % is pooled (sum on-time pickups / sum total pickups) across all standards and boroughs for calendar 2025.",
+q12,claude-haiku-5-5,raw_schema,1,"otp_standard,ratio_of_sums,time_logic",,"SELECT
+  strftime(service_date, '%Y-%m') AS month,
+  SUM(total_pickups) AS total_pickups,
+  SUM(ontime_pickups) AS ontime_pickups,
+  ROUND(100.0 * SUM(ontime_pickups) / NULLIF(SUM(total_pickups), 0), 1) AS ontime_pct
+FROM pickup_otp_daily
+WHERE service_date >= DATE '2026-01-01'
+  AND service_date < DATE '2027-01-01'
+GROUP BY 1
+ORDER BY 1;","Assumes all provider types, standards, and boroughs are pooled, on-time % = sum(ontime_pickups) / sum(total_pickups) per calendar month for 2026 (through the latest data, Nov 2026 as of today).",
+q14,claude-haiku-5-5,raw_schema,1,basic,,SELECT SUM(total_pickups) AS pickups_2024 FROM pickup_otp_daily WHERE service_date >= DATE '2024-01-01' AND service_date < DATE '2025-01-01';,"Assumed ""picked up"" means pickup events from pickup_otp_daily.total_pickups summed over 2024 across all providers, boroughs, and standards; the data has no unique client ID, so this counts pickups, not distinct clients, and summing trips_daily.riders would double-count repeat riders across days.",
+q31,claude-haiku-5-5,raw_schema,1,coverage,,"SELECT ROUND(SUM(ride_time_min) * 1.0 / SUM(trips), 1) AS avg_ride_time_min FROM ride_time_monthly WHERE EXTRACT(YEAR FROM month) = 2025 AND trips > 0","Assumes ride_time_min is total ride minutes per group (not a per-trip average), so the trip-weighted average is SUM(ride_time_min)/SUM(trips) for all 2025 months, providers, peak hours, and boroughs.",
+q32,claude-haiku-5-5,raw_schema,1,"coverage,rate_not_count",,"WITH ns AS (
+  SELECT date_trunc('month', month) AS m, AVG(no_shows_per_1000) AS rate_per_1000
+  FROM provider_no_shows_monthly
+  WHERE provider_type = 'Broker' AND month >= DATE '2024-01-01' AND month < DATE '2025-01-01'
+  GROUP BY 1
+),
+tr AS (
+  SELECT date_trunc('month', service_date) AS m, SUM(trips) AS trips
+  FROM trips_daily
+  WHERE provider_type = 'Broker' AND service_date >= DATE '2024-01-01' AND service_date < DATE '2025-01-01'
+  GROUP BY 1
+)
+SELECT ROUND(SUM(ns.rate_per_1000 * tr.trips / 1000.0), 0) AS estimated_broker_no_shows_2024
+FROM ns
+JOIN tr USING (m);","The no-show table holds only a monthly rate per 1,000 (no counts), so this estimates 2024 Broker no-shows by multiplying each month's rate by that month's Broker trips from trips_daily, assuming the rate uses trips as its denominator and that provider_type is exactly 'Broker'.",
+q08,claude-haiku-5-5,raw_schema,2,"otp_standard,ratio_of_sums",,"SELECT ROUND(100.0 * SUM(ontime_pickups) / SUM(total_pickups), 1) AS pickup_otp_pct_2025 FROM pickup_otp_daily WHERE service_date >= DATE '2025-01-01' AND service_date < DATE '2026-01-01';","Assumes on-time performance is the pooled ratio of ontime_pickups to total_pickups across all providers, standards, and boroughs for service dates in calendar 2025, rounded to 1 decimal.",
+q10,claude-haiku-5-5,raw_schema,2,"otp_standard,ratio_of_sums",,"SELECT
+  borough,
+  SUM(total_pickups) AS total_pickups,
+  SUM(ontime_pickups) AS ontime_pickups,
+  ROUND(100.0 * SUM(ontime_pickups) / NULLIF(SUM(total_pickups), 0), 1) AS ontime_pct
+FROM pickup_otp_daily
+WHERE service_date >= DATE '2025-01-01'
+  AND service_date < DATE '2026-01-01'
+GROUP BY borough
+ORDER BY ontime_pct ASC NULLS LAST;","Assumes on-time % is pooled across all provider types and standards for each borough in calendar 2025, sorted lowest on-time percentage first.",
+q11,claude-haiku-5-5,raw_schema,2,"otp_standard,ratio_of_sums",,"SELECT
+  provider_type AS provider,
+  SUM(total_pickups) AS total_pickups,
+  SUM(ontime_pickups) AS ontime_pickups,
+  ROUND(100.0 * SUM(ontime_pickups) / NULLIF(SUM(total_pickups), 0), 1) AS ontime_pct
+FROM pickup_otp_daily
+WHERE service_date >= DATE '2025-01-01'
+  AND service_date < DATE '2026-01-01'
+  AND provider_type IN ('Primary', 'Broker')
+GROUP BY provider_type
+ORDER BY provider_type;","Assumes provider_type values are exactly 'Primary' and 'Broker', on-time % is pooled (sum ontime / sum total) across all standards and boroughs for calendar 2025, and the 2025 date range is inclusive of Jan 1 through Dec 31.",
+q12,claude-haiku-5-5,raw_schema,2,"otp_standard,ratio_of_sums,time_logic",,"SELECT
+  strftime(service_date, '%Y-%m') AS month,
+  SUM(total_pickups) AS total_pickups,
+  SUM(ontime_pickups) AS ontime_pickups,
+  ROUND(100.0 * SUM(ontime_pickups) / NULLIF(SUM(total_pickups), 0), 1) AS otp_pct
+FROM pickup_otp_daily
+WHERE service_date >= DATE '2026-01-01'
+  AND service_date < DATE '2027-01-01'
+GROUP BY 1
+ORDER BY 1;","Assumes on-time rate is ontime_pickups / total_pickups across all provider types, standards, and boroughs, filtered to 2026 service dates (data through the latest available month).",
+q14,claude-haiku-5-5,raw_schema,2,basic,,SELECT SUM(riders) AS clients_picked_up_2024 FROM trips_daily WHERE service_date >= DATE '2024-01-01' AND service_date < DATE '2025-01-01';,"Assumed ""clients"" maps to the riders column in trips_daily and summed across all providers and boroughs for 2024; since riders is a daily count, this sums rider-days and may overcount unique individuals who rode on multiple days.",
+q30,claude-haiku-5-5,raw_schema,2,"cross_table,ratio_of_sums,time_logic",,"WITH c AS (
+  SELECT provider_type, SUM(complaints) AS complaints
+  FROM complaints_daily
+  WHERE EXTRACT(YEAR FROM opened_date) = 2025
+  GROUP BY provider_type
+),
+t AS (
+  SELECT provider_type, SUM(trips) AS trips
+  FROM trips_daily
+  WHERE EXTRACT(YEAR FROM service_date) = 2025
+  GROUP BY provider_type
+),
+j AS (
+  SELECT COALESCE(c.provider_type, t.provider_type) AS provider_type,
+         c.complaints,
+         t.trips
+  FROM c
+  FULL OUTER JOIN t ON c.provider_type = t.provider_type
+)
+SELECT provider_type,
+       complaints,
+       trips,
+       ROUND(1000.0 * complaints / trips, 1) AS complaints_per_1000_trips
+FROM j
+UNION ALL
+SELECT 'All providers',
+       SUM(complaints),
+       SUM(trips),
+       ROUND(1000.0 * SUM(complaints) / SUM(trips), 1)
+FROM j
+ORDER BY provider_type","Assumes ""last year"" means calendar 2025 (today is 2026-11-23), complaints and trips are matched by provider_type only (complaints_daily has no borough, and trips_daily is summed across boroughs), and the rate is total complaints per 1,000 total trips.",
+q31,claude-haiku-5-5,raw_schema,2,coverage,,"SELECT ROUND(SUM(ride_time_min) * 1.0 / SUM(trips), 1) AS avg_ride_time_min FROM ride_time_monthly WHERE month >= DATE '2025-01-01' AND month < DATE '2026-01-01';","Assumes ride_time_min is the total ride minutes per group (so trip-weighted average = SUM(ride_time_min)/SUM(trips)) and that all provider types, peak hours, and boroughs are included for months in 2025.",
+q08,claude-haiku-5-5,raw_schema,3,"otp_standard,ratio_of_sums",,"SELECT ROUND(100.0 * SUM(ontime_pickups) / SUM(total_pickups), 1) AS ontime_pct_2025, SUM(ontime_pickups) AS ontime_pickups, SUM(total_pickups) AS total_pickups FROM pickup_otp_daily WHERE service_date >= DATE '2025-01-01' AND service_date < DATE '2026-01-01';","Assumes on-time performance is the pooled ratio of ontime_pickups to total_pickups across all provider types, boroughs, and standards for service dates in calendar 2025, weighting by volume rather than averaging daily rates.",
+q10,claude-haiku-5-5,raw_schema,3,"otp_standard,ratio_of_sums",,"SELECT borough, SUM(total_pickups) AS total_pickups, SUM(ontime_pickups) AS ontime_pickups, ROUND(100.0 * SUM(ontime_pickups) / NULLIF(SUM(total_pickups), 0), 1) AS ontime_pct FROM pickup_otp_daily WHERE service_date >= DATE '2025-01-01' AND service_date < DATE '2026-01-01' GROUP BY borough ORDER BY ontime_pct ASC NULLS LAST","Assumed on-time % is pooled over all provider types and standards in 2025 (sum of on-time pickups divided by sum of total pickups), and ""worst first"" means lowest on-time percentage first.",
+q11,claude-haiku-5-5,raw_schema,3,"otp_standard,ratio_of_sums",,"SELECT
+    provider_type,
+    SUM(total_pickups) AS total_pickups,
+    SUM(ontime_pickups) AS ontime_pickups,
+    ROUND(100.0 * SUM(ontime_pickups) / NULLIF(SUM(total_pickups), 0), 1) AS ontime_pct
+FROM pickup_otp_daily
+WHERE service_date >= DATE '2025-01-01'
+  AND service_date < DATE '2026-01-01'
+  AND LOWER(provider_type) IN ('primary', 'broker')
+GROUP BY provider_type
+ORDER BY provider_type;","Assumes provider_type values are ""Primary"" and ""Broker"" (matched case-insensitively), on-time % is total on-time pickups over total pickups across all standards and boroughs for calendar 2025, and the query is not weighted by daily/borough averages.",
+q12,claude-haiku-5-5,raw_schema,3,"otp_standard,ratio_of_sums,time_logic",,"SELECT
+  strftime(service_date, '%Y-%m') AS month,
+  SUM(total_pickups) AS total_pickups,
+  SUM(ontime_pickups) AS ontime_pickups,
+  ROUND(100.0 * SUM(ontime_pickups) / NULLIF(SUM(total_pickups), 0), 1) AS ontime_pct
+FROM pickup_otp_daily
+WHERE service_date >= DATE '2026-01-01'
+  AND service_date < DATE '2027-01-01'
+GROUP BY 1
+ORDER BY 1;","Assumes on-time rate is total ontime_pickups divided by total_pickups across all providers, standards, and boroughs, covering 2026 dates through the current date (2026-11-23) with no further filter.",
+q14,claude-haiku-5-5,raw_schema,3,basic,,SELECT SUM(riders) AS clients_picked_up_2024 FROM trips_daily WHERE service_date >= DATE '2024-01-01' AND service_date < DATE '2025-01-01';,"Assumed ""clients picked up"" means the riders column in trips_daily summed over 2024; this counts rider-days, so a client who rode on several days is counted once per day, and the table has no unique client ID to give a distinct count.",
+q30,claude-haiku-5-5,raw_schema,3,"cross_table,ratio_of_sums,time_logic",,"WITH c AS (
+  SELECT provider_type, SUM(complaints) AS complaints
+  FROM complaints_daily
+  WHERE opened_date >= DATE '2025-01-01' AND opened_date < DATE '2026-01-01'
+  GROUP BY provider_type
+),
+t AS (
+  SELECT provider_type, SUM(trips) AS trips
+  FROM trips_daily
+  WHERE service_date >= DATE '2025-01-01' AND service_date < DATE '2026-01-01'
+  GROUP BY provider_type
+),
+by_provider AS (
+  SELECT COALESCE(c.provider_type, t.provider_type) AS provider,
+         c.complaints,
+         t.trips
+  FROM c FULL OUTER JOIN t ON c.provider_type = t.provider_type
+),
+overall AS (
+  SELECT 'All providers' AS provider,
+         SUM(complaints) AS complaints,
+         SUM(trips) AS trips
+  FROM by_provider
+)
+SELECT provider,
+       complaints,
+       trips,
+       ROUND(1000.0 * complaints / trips, 1) AS complaints_per_1000_trips
+FROM (SELECT * FROM by_provider UNION ALL SELECT * FROM overall)
+ORDER BY provider;","Assumes ""last year"" means calendar 2025 (today is 2026-11-23), complaints and trips are matched by provider_type only since complaints_daily has no borough, and the rate is total complaints divided by total trips times 1,000.",
+q31,claude-haiku-5-5,raw_schema,3,coverage,,"SELECT ROUND(SUM(ride_time_min) * 1.0 / SUM(trips), 1) AS avg_ride_time_min FROM ride_time_monthly WHERE EXTRACT(YEAR FROM month) = 2025","Assumes ride_time_min is the total ride minutes per group (so the average is total minutes divided by total trips across all providers, peak hours, and boroughs) and that trips counts the trips in each group.",
+q32,claude-haiku-5-5,raw_schema,3,"coverage,rate_not_count",,"WITH ns AS (
+  SELECT month, no_shows_per_1000
+  FROM provider_no_shows_monthly
+  WHERE provider_type = 'Broker' AND YEAR(month) = 2024
+),
+tr AS (
+  SELECT CAST(DATE_TRUNC('month', service_date) AS DATE) AS month, SUM(trips) AS trips
+  FROM trips_daily
+  WHERE provider_type = 'Broker' AND YEAR(service_date) = 2024
+  GROUP BY 1
+)
+SELECT ROUND(SUM(ns.no_shows_per_1000 * tr.trips / 1000.0), 0) AS est_broker_no_shows_2024
+FROM ns
+JOIN tr USING (month);","The no-show table only stores a monthly rate per 1,000 (assumed to be per 1,000 trips), so the count is estimated by multiplying each month's rate by that month's Broker trips from trips_daily and summing; the provider_type value 'Broker' is assumed to match exactly.",
+q08,claude-haiku-5-5,schema_dict,1,"otp_standard,ratio_of_sums",,"SELECT standard AS otp_standard, ROUND(100.0 * SUM(ontime_pickups) / SUM(total_pickups), 1) AS ontime_pct, SUM(total_pickups) AS measured_pickups FROM pickup_otp_daily WHERE service_date >= DATE '2025-01-01' AND service_date < DATE '2026-01-01' GROUP BY standard ORDER BY standard","Assumed ""2025"" means calendar 2025 service dates, all Primary and Broker pickups combined; each standard is reported separately because each trip appears once per standard, so summing across standards would double count.",
+q10,claude-haiku-5-5,schema_dict,1,"otp_standard,ratio_of_sums",,"SELECT
+  borough AS borough,
+  ROUND(100.0 * SUM(ontime_pickups) / SUM(total_pickups), 1) AS ontime_pct,
+  SUM(total_pickups) AS pickups_measured
+FROM pickup_otp_daily
+WHERE service_date >= DATE '2025-01-01'
+  AND service_date < DATE '2026-01-01'
+  AND standard = '15-minutes'
+GROUP BY borough
+ORDER BY ontime_pct ASC;","I assumed the 15-minute standard so every borough is compared on the same basis (it exists for all years), pooled Primary and Broker pickups, and used calendar year 2025 by service date.",
+q11,claude-haiku-5-5,schema_dict,1,"otp_standard,ratio_of_sums",,"SELECT provider_type AS provider, standard AS otp_standard, SUM(total_pickups) AS pickups_measured, SUM(ontime_pickups) AS ontime_pickups, ROUND(100.0 * SUM(ontime_pickups) / NULLIF(SUM(total_pickups), 0), 1) AS ontime_pct FROM pickup_otp_daily WHERE service_date >= DATE '2025-01-01' AND service_date < DATE '2026-01-01' AND provider_type IN ('Primary', 'Broker') GROUP BY provider_type, standard ORDER BY standard, provider_type","Assumes calendar year 2025 by service_date, OTP = on-time pickups divided by pickups measured (summed across boroughs, so weighted by volume), reported separately for each standard because each trip appears once per standard and the 20-minute standard only exists from late 2021.",
+q12,claude-haiku-5-5,schema_dict,1,"otp_standard,ratio_of_sums,time_logic",,"SELECT strftime(service_date, '%Y-%m') AS month, standard AS standard, SUM(total_pickups) AS pickups_measured, SUM(ontime_pickups) AS ontime_pickups, ROUND(100.0 * SUM(ontime_pickups) / NULLIF(SUM(total_pickups), 0), 1) AS otp_pct FROM pickup_otp_daily WHERE service_date >= DATE '2026-01-01' AND service_date < DATE '2027-01-01' GROUP BY 1, 2 ORDER BY 1, 2","Assumes OTP = on-time pickups / pickups measured (all provider types and boroughs combined), reported separately for each OTP standard (15, 20, 30 min) because each trip is counted once per standard; the query covers service dates in calendar 2026 through the latest available data (data runs to Sep 2026).",
+q08,claude-haiku-5-5,schema_dict,2,"otp_standard,ratio_of_sums",,"SELECT standard AS otp_standard, ROUND(100.0 * SUM(ontime_pickups) / SUM(total_pickups), 1) AS otp_pct, SUM(total_pickups) AS total_pickups, SUM(ontime_pickups) AS ontime_pickups FROM pickup_otp_daily WHERE service_date >= DATE '2025-01-01' AND service_date < DATE '2026-01-01' GROUP BY standard ORDER BY standard","Assumes ""2025"" means calendar year 2025 across Primary and Broker, and because each trip appears once per standard, OTP is reported separately for each standard rather than combined.",
+q10,claude-haiku-5-5,schema_dict,2,"otp_standard,ratio_of_sums",,"SELECT
+  borough,
+  SUM(total_pickups) AS total_pickups,
+  SUM(ontime_pickups) AS ontime_pickups,
+  ROUND(100.0 * SUM(ontime_pickups) / SUM(total_pickups), 1) AS otp_pct
+FROM pickup_otp_daily
+WHERE service_date >= DATE '2025-01-01'
+  AND service_date < DATE '2026-01-01'
+  AND standard = '15-minutes'
+GROUP BY borough
+ORDER BY otp_pct ASC;","Assumed the 15-minute standard only, since each trip appears once per standard and that standard covers all of 2025; OTP is combined across Primary and Broker, and results are sorted lowest OTP first.",
+q11,claude-haiku-5-5,schema_dict,2,"otp_standard,ratio_of_sums",,"SELECT
+  provider_type AS provider,
+  standard,
+  SUM(total_pickups) AS pickups_measured,
+  SUM(ontime_pickups) AS ontime_pickups,
+  ROUND(100.0 * SUM(ontime_pickups) / NULLIF(SUM(total_pickups), 0), 1) AS ontime_pct
+FROM pickup_otp_daily
+WHERE service_date >= DATE '2025-01-01'
+  AND service_date < DATE '2026-01-01'
+  AND provider_type IN ('Primary', 'Broker')
+GROUP BY provider_type, standard
+ORDER BY standard, provider_type;","Assumes calendar year 2025, on-time % = sum(ontime_pickups)/sum(total_pickups) per provider and OTP standard, reported separately by standard because each trip appears once per standard (so pooling standards would double count).",
+q12,claude-haiku-5-5,schema_dict,2,"otp_standard,ratio_of_sums,time_logic",,"SELECT strftime(service_date, '%Y-%m') AS month, standard, SUM(total_pickups) AS pickups, SUM(ontime_pickups) AS ontime_pickups, ROUND(100.0 * SUM(ontime_pickups) / NULLIF(SUM(total_pickups), 0), 1) AS otp_pct FROM pickup_otp_daily WHERE service_date >= DATE '2026-01-01' AND service_date < DATE '2027-01-01' GROUP BY 1, 2 ORDER BY 1, 2;","Assumes 2026 means Jan–Dec 2026 (data available through Sep 2026), OTP is ontime/total pickups aggregated across all boroughs and provider types, and results are split by OTP standard (15/20/30 min) because each trip is counted once per standard.",
+q08,claude-haiku-5-5,schema_dict,3,"otp_standard,ratio_of_sums",,"SELECT ROUND(100.0 * SUM(ontime_pickups) / SUM(total_pickups), 1) AS otp_pct_2025 FROM pickup_otp_daily WHERE service_date >= DATE '2025-01-01' AND service_date < DATE '2026-01-01' AND standard = '15-minutes'","Assumes 2025 means calendar year 2025, OTP uses the 15-minute standard because it is published for the full year (each trip appears once per standard, so summing across standards would double-count), and the result pools Primary and Broker pickups weighted by volume.",
+q10,claude-haiku-5-5,schema_dict,3,"otp_standard,ratio_of_sums",,"SELECT
+  borough AS borough,
+  SUM(total_pickups) AS total_pickups,
+  SUM(ontime_pickups) AS ontime_pickups,
+  ROUND(100.0 * SUM(ontime_pickups) / NULLIF(SUM(total_pickups), 0), 1) AS ontime_pct
+FROM pickup_otp_daily
+WHERE service_date >= DATE '2025-01-01'
+  AND service_date < DATE '2026-01-01'
+  AND standard = '15-minutes'
+GROUP BY borough
+ORDER BY ontime_pct ASC NULLS LAST;","Assumes ""on-time performance"" means the 15-minute standard, since each trip appears once per standard and summing across standards would double-count; covers calendar year 2025 for Primary and Broker pickups, ranked lowest on-time percentage first.",
+q11,claude-haiku-5-5,schema_dict,3,"otp_standard,ratio_of_sums",,"SELECT
+  provider_type AS provider,
+  standard,
+  SUM(total_pickups) AS pickups,
+  SUM(ontime_pickups) AS ontime,
+  ROUND(100.0 * SUM(ontime_pickups) / NULLIF(SUM(total_pickups), 0), 1) AS ontime_pct
+FROM pickup_otp_daily
+WHERE service_date >= DATE '2025-01-01'
+  AND service_date < DATE '2026-01-01'
+  AND provider_type IN ('Primary', 'Broker')
+GROUP BY provider_type, standard
+ORDER BY standard, provider;","Assumes calendar year 2025, and each standard is reported separately because each trip appears once per standard, so pooling standards would double-count pickups.",
+q12,claude-haiku-5-5,schema_dict,3,"otp_standard,ratio_of_sums,time_logic",,"SELECT strftime(service_date, '%Y-%m') AS month, standard, SUM(ontime_pickups) AS ontime_pickups, SUM(total_pickups) AS total_pickups, ROUND(100.0 * SUM(ontime_pickups) / NULLIF(SUM(total_pickups), 0), 1) AS otp_pct FROM pickup_otp_daily WHERE service_date >= DATE '2026-01-01' AND service_date < DATE '2027-01-01' GROUP BY 1, 2 ORDER BY 1, 2;","Assumed ""2026 so far"" means Jan through the latest data available (today is 2026-11-23, but the table runs only through Sep 2026); OTP is computed per standard and not summed across standards, because each trip appears once per standard and summing would double-count pickups.",
+q25,claude-haiku-5-5,schema_dict,3,rate_not_count,,"SELECT strftime(month, '%B %Y') AS month_name, ROUND(no_shows_per_1000, 1) AS no_shows_per_1000 FROM provider_no_shows_monthly WHERE provider_type = 'Broker' AND month >= DATE '2022-01-01' AND month < DATE '2023-01-01' ORDER BY no_shows_per_1000 DESC LIMIT 1","Assumes ""Broker"" means provider_type = 'Broker' in the monthly no-show rate table, the highest rate is the answer (returns one row), and the rate is per 1,000 scheduled trips.",

@@ -1,0 +1,15 @@
+id,mode,model,tags,correct,attempts,error,input_tokens,output_tokens,seconds,sql,notes,repeat
+q01,semantic_fewshot,claude-haiku-5-5,basic,True,1,,4482,157,2.57,SELECT SUM(trips) AS trips_2025 FROM trips_daily WHERE year(service_date) = 2025,"Assumes ""completed trips"" means all provider types and boroughs in trips_daily for calendar year 2025, summed from the daily grain.",1
+q08,semantic_fewshot,claude-haiku-5-5,"otp_standard,ratio_of_sums",True,1,,4485,210,2.5,"SELECT ROUND(100.0 * SUM(ontime_pickups) / SUM(total_pickups), 1) AS pickup_otp_pct FROM pickup_otp_daily WHERE standard = '20-minutes' AND year(service_date) = 2025","Assumes the default 20-minute standard (official MTA standard), Primary and Broker pickups only as stored, and 2025 as the full calendar year.",1
+q17,semantic_fewshot,claude-haiku-5-5,"cross_table,ratio_of_sums",True,1,,4491,289,2.52,"WITH c AS (
+  SELECT SUM(complaints) AS complaints
+  FROM complaints_daily WHERE year(opened_date) = 2024
+),
+t AS (
+  SELECT SUM(trips) AS trips
+  FROM trips_daily WHERE year(service_date) = 2024
+)
+SELECT ROUND(1000.0 * c.complaints / t.trips, 2) AS complaint_rate_per_1000
+FROM c CROSS JOIN t","Assumes the full calendar year 2024 for both complaints (by opened_date) and completed trips (by service_date), aggregated separately before dividing, with all provider types and categories included.",1
+q24,semantic_fewshot,claude-haiku-5-5,rate_not_count,True,1,,4495,332,2.82,"SELECT ROUND(AVG(no_shows_per_1000), 2) AS provider_no_show_rate FROM provider_no_shows_monthly WHERE provider_type = 'Primary' AND year(month) = 2023","Assumes the no-show rate is the average of monthly no_shows_per_1000 values for Primary across the 12 months of 2023 (the data covers through Dec 2023), reported per 1,000 scheduled trips.",1
+q31,semantic_fewshot,claude-haiku-5-5,coverage,False,1,,4482,212,2.7,"SELECT ROUND(SUM(ride_time_min) * 1.0 / SUM(trips), 2) AS avg_ride_time_min FROM ride_time_monthly WHERE year(month) = 2025","Ride time data ends Dec 2023, so the 2025 query will return NULL/empty; assuming the question is answerable only as a no-data result, and the SQL is written per the metric definition in case the data is later extended.",1

@@ -1,0 +1,23 @@
+id,mode,model,tags,correct,attempts,error,input_tokens,output_tokens,seconds,sql,notes,repeat
+q01,schema_dict,claude-haiku-5-5,basic,True,1,,3154,258,5.28,SELECT SUM(trips) AS trips_2025 FROM trips_daily WHERE service_date >= DATE '2025-01-01' AND service_date < DATE '2026-01-01',"Assumes ""completed trips in 2025"" means the total of trips across all provider types and boroughs in trips_daily, filtered by service_date within calendar 2025.",1
+q08,schema_dict,claude-haiku-5-5,"otp_standard,ratio_of_sums",False,1,,3153,538,3.54,"SELECT standard AS otp_standard, SUM(ontime_pickups) AS ontime_pickups, SUM(total_pickups) AS total_pickups, ROUND(100.0 * SUM(ontime_pickups) / NULLIF(SUM(total_pickups), 0), 1) AS otp_pct FROM pickup_otp_daily WHERE service_date >= DATE '2025-01-01' AND service_date < DATE '2026-01-01' GROUP BY standard ORDER BY standard","Assumes 2025 means calendar year by service_date, OTP = on-time pickups divided by total pickups across Primary and Broker, reported separately per standard because each trip is counted once per standard and the 20-minute standard only exists from late 2021.",1
+q17,schema_dict,claude-haiku-5-5,"cross_table,ratio_of_sums",False,1,,3162,894,4.7,"WITH c AS (
+  SELECT SUM(complaints) AS n
+  FROM complaints_daily
+  WHERE opened_date >= DATE '2024-01-01'
+    AND opened_date < DATE '2025-01-01'
+    AND provider_type <> 'Non-Transportation'
+),
+t AS (
+  SELECT SUM(trips) AS n
+  FROM trips_daily
+  WHERE service_date >= DATE '2024-01-01'
+    AND service_date < DATE '2025-01-01'
+)
+SELECT
+  c.n AS complaints_2024,
+  t.n AS trips_2024,
+  ROUND(1000.0 * c.n / t.n, 1) AS complaints_per_1000_trips
+FROM c, t;","Assumes calendar year 2024, complaints counted by opened_date and trips by service_date, Non-Transportation complaints excluded because they have no matching trip base, and all other provider types pooled since the two tables' provider categories only partly overlap.",1
+q24,schema_dict,claude-haiku-5-5,rate_not_count,True,1,,3158,343,2.96,"SELECT ROUND(AVG(no_shows_per_1000), 1) AS avg_no_shows_per_1000_primary_2023 FROM provider_no_shows_monthly WHERE provider_type = 'Primary' AND month >= DATE '2023-01-01' AND month < DATE '2024-01-01'","Assumes the answer is the simple average of the 12 monthly Primary no-show rates for 2023 (per 1,000 scheduled trips), since the table has no trip counts to weight by.",1
+q31,schema_dict,claude-haiku-5-5,coverage,True,1,Model said the question cannot be answered.,3150,211,2.24,,"Assumed ""ride time"" means the ride_time_monthly table, which covers only Jan 2017 to Dec 2023, so 2025 data is not available and no 2025 average can be computed; trips_daily has no ride-time column.",1

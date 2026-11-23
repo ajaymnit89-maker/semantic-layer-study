@@ -1,0 +1,151 @@
+id,mode,model,tags,correct,attempts,error,input_tokens,output_tokens,seconds,sql,notes,repeat
+q01,raw_schema,claude-haiku-5-5,basic,True,1,,2340,263,2.59,SELECT SUM(trips) AS trips_completed_2025 FROM trips_daily WHERE service_date >= DATE '2025-01-01' AND service_date < DATE '2026-01-01',"Assumes trips_daily.trips counts completed paratransit trips by service_date, and that 2025 means calendar year 2025 across all provider types and boroughs.",3
+q02,raw_schema,claude-haiku-5-5,basic,True,1,,2343,291,2.72,SELECT SUM(riders) AS total_riders_2019 FROM trips_daily WHERE service_date >= DATE '2019-01-01' AND service_date < DATE '2020-01-01';,"Assumes the trips_daily riders column already counts attendants and guests along with registered riders, and sums across all provider types and boroughs for calendar year 2019.",3
+q03,raw_schema,claude-haiku-5-5,basic,True,1,,2343,321,2.79,"SELECT borough, SUM(trips) AS total_trips FROM trips_daily WHERE service_date >= DATE '2025-01-01' AND service_date < DATE '2026-01-01' GROUP BY borough ORDER BY total_trips DESC LIMIT 1","Assumes trips_daily.borough is the pickup borough and that ""trips"" means the sum of the trips column for calendar year 2025 (Jan 1 to Dec 31).",3
+q04,raw_schema,claude-haiku-5-5,basic,True,1,,2343,249,2.34,"SELECT provider_type AS provider, SUM(trips) AS total_trips FROM trips_daily WHERE service_date >= DATE '2024-01-01' AND service_date < DATE '2025-01-01' GROUP BY provider_type ORDER BY total_trips DESC","Assumes ""2024"" means calendar year 2024 on service_date in trips_daily, summing the trips column per provider_type.",3
+q05,raw_schema,claude-haiku-5-5,time_logic,True,1,,2340,378,3.2,"WITH daily AS (
+  SELECT service_date, SUM(trips) AS day_trips
+  FROM trips_daily
+  WHERE service_date >= DATE '2025-01-01' AND service_date < DATE '2026-01-01'
+  GROUP BY service_date
+)
+SELECT ROUND(AVG(day_trips), 1) AS avg_trips_per_day
+FROM daily;","Assumes ""per day"" means the average of daily total trips across all providers and boroughs over the dates in 2025 that have data in trips_daily (days with no rows are excluded, not counted as zero).",3
+q06,raw_schema,claude-haiku-5-5,basic,True,1,,2337,436,3.22,"SELECT strftime(service_date, '%Y-%m') AS month, SUM(trips) AS total_trips FROM trips_daily WHERE service_date >= DATE '2025-01-01' AND service_date < DATE '2026-01-01' GROUP BY 1 ORDER BY total_trips DESC LIMIT 1;","Assumes trips_daily is the source for trip counts, summed across all provider types and boroughs, and that ""2025"" means service_date within calendar year 2025.",3
+q07,raw_schema,claude-haiku-5-5,time_logic,True,1,,2343,691,3.73,"WITH yearly AS (SELECT EXTRACT(year FROM service_date) AS yr, SUM(trips) AS total_trips FROM trips_daily WHERE EXTRACT(year FROM service_date) IN (2024, 2025) GROUP BY 1) SELECT MAX(CASE WHEN yr = 2024 THEN total_trips END) AS trips_2024, MAX(CASE WHEN yr = 2025 THEN total_trips END) AS trips_2025, ROUND(100.0 * (MAX(CASE WHEN yr = 2025 THEN total_trips END) - MAX(CASE WHEN yr = 2024 THEN total_trips END)) / MAX(CASE WHEN yr = 2024 THEN total_trips END), 1) AS pct_change FROM yearly","Assumes ""trips"" means the sum of trips in trips_daily for calendar years 2024 and 2025 (all providers and boroughs), with percent change computed as (2025 − 2024) / 2024.",3
+q08,raw_schema,claude-haiku-5-5,"otp_standard,ratio_of_sums",False,1,,2340,463,3.29,"SELECT ROUND(100.0 * SUM(ontime_pickups) / SUM(total_pickups), 1) AS ontime_pct_2025, SUM(ontime_pickups) AS ontime_pickups, SUM(total_pickups) AS total_pickups FROM pickup_otp_daily WHERE service_date >= DATE '2025-01-01' AND service_date < DATE '2026-01-01';","Assumes on-time performance is the pooled ratio of ontime_pickups to total_pickups across all provider types, boroughs, and standards for service dates in calendar 2025, weighting by volume rather than averaging daily rates.",3
+q09,raw_schema,claude-haiku-5-5,"otp_standard,ratio_of_sums",True,1,,2349,549,3.7,"SELECT ROUND(100.0 * SUM(ontime_pickups) / NULLIF(SUM(total_pickups), 0), 1) AS pickup_otp_pct_2023_15min FROM pickup_otp_daily WHERE service_date >= DATE '2023-01-01' AND service_date < DATE '2024-01-01' AND standard ILIKE '%15%'","Assumed the standard column encodes the 15-minute window in a value containing ""15"" (exact label unknown, so ILIKE '%15%' is used), 2023 means service_date within calendar 2023, and OTP is total on-time pickups over total pickups across all providers and boroughs.",3
+q10,raw_schema,claude-haiku-5-5,"otp_standard,ratio_of_sums",False,1,,2345,637,3.66,"SELECT borough, SUM(total_pickups) AS total_pickups, SUM(ontime_pickups) AS ontime_pickups, ROUND(100.0 * SUM(ontime_pickups) / NULLIF(SUM(total_pickups), 0), 1) AS ontime_pct FROM pickup_otp_daily WHERE service_date >= DATE '2025-01-01' AND service_date < DATE '2026-01-01' GROUP BY borough ORDER BY ontime_pct ASC NULLS LAST","Assumed on-time % is pooled over all provider types and standards in 2025 (sum of on-time pickups divided by sum of total pickups), and ""worst first"" means lowest on-time percentage first.",3
+q11,raw_schema,claude-haiku-5-5,"otp_standard,ratio_of_sums",False,1,,2344,638,3.85,"SELECT
+    provider_type,
+    SUM(total_pickups) AS total_pickups,
+    SUM(ontime_pickups) AS ontime_pickups,
+    ROUND(100.0 * SUM(ontime_pickups) / NULLIF(SUM(total_pickups), 0), 1) AS ontime_pct
+FROM pickup_otp_daily
+WHERE service_date >= DATE '2025-01-01'
+  AND service_date < DATE '2026-01-01'
+  AND LOWER(provider_type) IN ('primary', 'broker')
+GROUP BY provider_type
+ORDER BY provider_type;","Assumes provider_type values are ""Primary"" and ""Broker"" (matched case-insensitively), on-time % is total on-time pickups over total pickups across all standards and boroughs for calendar 2025, and the query is not weighted by daily/borough averages.",3
+q12,raw_schema,claude-haiku-5-5,"otp_standard,ratio_of_sums,time_logic",False,1,,2350,430,2.99,"SELECT
+  strftime(service_date, '%Y-%m') AS month,
+  SUM(total_pickups) AS total_pickups,
+  SUM(ontime_pickups) AS ontime_pickups,
+  ROUND(100.0 * SUM(ontime_pickups) / NULLIF(SUM(total_pickups), 0), 1) AS ontime_pct
+FROM pickup_otp_daily
+WHERE service_date >= DATE '2026-01-01'
+  AND service_date < DATE '2027-01-01'
+GROUP BY 1
+ORDER BY 1;","Assumes on-time rate is total ontime_pickups divided by total_pickups across all providers, standards, and boroughs, covering 2026 dates through the current date (2026-11-23) with no further filter.",3
+q13,raw_schema,claude-haiku-5-5,"otp_standard,ratio_of_sums,time_logic",True,1,,2347,1319,6.64,"WITH src AS (
+  SELECT CAST(EXTRACT(year FROM service_date) AS INTEGER) AS yr,
+         service_date,
+         total_pickups,
+         ontime_pickups
+  FROM pickup_otp_daily
+  WHERE standard ILIKE '%30%'
+),
+full_years AS (
+  SELECT yr
+  FROM src
+  GROUP BY yr
+  HAVING MIN(service_date) = make_date(yr, 1, 1)
+     AND MAX(service_date) = make_date(yr, 12, 31)
+)
+SELECT s.yr AS year,
+       ROUND(100.0 * SUM(s.ontime_pickups) / SUM(s.total_pickups), 1) AS ontime_pct
+FROM src s
+JOIN full_years f USING (yr)
+GROUP BY s.yr
+ORDER BY ontime_pct DESC
+LIMIT 1;","Assumed the 30-minute standard is identified by ILIKE '%30%' on the standard column (exact label not verified), pooled all provider types and boroughs by summing pickups, and limited to calendar years whose data spans Jan 1 through Dec 31 so the partial current year is excluded.",3
+q14,raw_schema,claude-haiku-5-5,basic,False,1,,2338,570,3.84,SELECT SUM(riders) AS clients_picked_up_2024 FROM trips_daily WHERE service_date >= DATE '2024-01-01' AND service_date < DATE '2025-01-01';,"Assumed ""clients picked up"" means the riders column in trips_daily summed over 2024; this counts rider-days, so a client who rode on several days is counted once per day, and the table has no unique client ID to give a distinct count.",3
+q15,raw_schema,claude-haiku-5-5,basic,True,1,,2339,233,2.36,SELECT SUM(complaints) AS complaints_2025 FROM complaints_daily WHERE opened_date >= DATE '2025-01-01' AND opened_date < DATE '2026-01-01',"Assumed ""complaints opened"" means summing the complaints column for rows with opened_date in calendar year 2025, across all provider types and categories.",3
+q16,raw_schema,claude-haiku-5-5,basic,True,1,,2340,296,2.59,"SELECT category AS complaint_category, SUM(complaints) AS total_complaints FROM complaints_daily WHERE opened_date >= DATE '2025-01-01' AND opened_date < DATE '2026-01-01' GROUP BY category ORDER BY total_complaints DESC LIMIT 5;","Assumes ""in 2025"" means opened_date from 2025-01-01 through 2025-12-31, and complaints are summed across all provider types.",3
+q17,raw_schema,claude-haiku-5-5,"cross_table,ratio_of_sums",True,1,,2346,744,4.37,"WITH complaints_2024 AS (
+  SELECT SUM(complaints) AS total_complaints
+  FROM complaints_daily
+  WHERE opened_date >= DATE '2024-01-01' AND opened_date < DATE '2025-01-01'
+),
+trips_2024 AS (
+  SELECT SUM(trips) AS total_trips
+  FROM trips_daily
+  WHERE service_date >= DATE '2024-01-01' AND service_date < DATE '2025-01-01'
+)
+SELECT
+  c.total_complaints AS complaints_2024,
+  t.total_trips AS trips_2024,
+  ROUND(1000.0 * c.total_complaints / NULLIF(t.total_trips, 0), 1) AS complaints_per_1000_trips
+FROM complaints_2024 c
+CROSS JOIN trips_2024 t;","Assumes complaints and trips are both comparable across all provider types and boroughs, so I summed each table separately for calendar 2024 and divided, avoiding a join that could double-count.",3
+q18,raw_schema,claude-haiku-5-5,basic,True,1,,2340,355,2.94,"SELECT provider_type AS provider, SUM(complaints) AS total_complaints FROM complaints_daily WHERE opened_date >= DATE '2023-01-01' AND opened_date < DATE '2024-01-01' GROUP BY provider_type ORDER BY total_complaints DESC LIMIT 1;","Assumed ""2023"" means calendar year 2023 by opened_date, and that the single top provider_type by summed complaints is wanted (ties not handled).",3
+q19,raw_schema,claude-haiku-5-5,"basic,time_logic",True,1,,2339,406,3.05,"SELECT strftime(date_trunc('month', opened_date), '%Y-%m') AS month, SUM(complaints) AS late_pickup_complaints FROM complaints_daily WHERE opened_date >= DATE '2025-01-01' AND opened_date < DATE '2026-01-01' AND category ILIKE '%late%' GROUP BY 1 ORDER BY 1;","Assumed ""late pickup complaints"" maps to category values containing ""late"" (exact category labels were not provided, so ILIKE '%late%' is used), summing the complaints count for each calendar month of 2025.",3
+q20,raw_schema,claude-haiku-5-5,ratio_of_sums,True,1,,2342,397,3.4,"SELECT ROUND(SUM(ride_time_min) * 1.0 / SUM(trips), 1) AS avg_ride_time_min FROM ride_time_monthly WHERE EXTRACT(YEAR FROM month) = 2023;","Assumes ride_time_min is the total ride minutes per row (summed across trips), so the trip-weighted average is SUM(ride_time_min) / SUM(trips) for all 2023 months and providers; if ride_time_min were already a per-trip average, the result would differ.",3
+q21,raw_schema,claude-haiku-5-5,ratio_of_sums,True,1,,2345,764,4.65,"SELECT peak_hour, ROUND(SUM(ride_time_min) * 1.0 / SUM(trips), 1) AS avg_ride_time_min, SUM(trips) AS total_trips FROM ride_time_monthly WHERE month >= DATE '2022-01-01' AND month < DATE '2023-01-01' GROUP BY peak_hour ORDER BY peak_hour;","Assumes ride_time_min is total ride minutes per row (so average = sum of minutes / sum of trips), peak_hour holds the peak and off-peak labels as-is (exact values not verified), and 2022 is filtered on the month column.",3
+q22,raw_schema,claude-haiku-5-5,ratio_of_sums,True,1,,2342,374,2.89,"SELECT ROUND(100.0 * SUM(CASE WHEN within_max_ride_time THEN trips ELSE 0 END) / SUM(trips), 1) AS pct_within_max_ride_time FROM ride_time_monthly WHERE EXTRACT(YEAR FROM month) = 2023;","Assumes ""trips"" means the trips column in ride_time_monthly, weighted by trip count across all provider types, peak hours, and origin boroughs for months in 2023, with the result rounded to one decimal place.",3
+q23,raw_schema,claude-haiku-5-5,ratio_of_sums,True,1,,2345,395,4.06,"SELECT ROUND(SUM(ride_time_min) * 1.0 / SUM(trips), 1) AS avg_ride_time_min FROM ride_time_monthly WHERE origin_borough = 'Staten Island' AND month >= DATE '2021-01-01' AND month < DATE '2022-01-01'","Assumes ride_time_min is the total ride minutes per group (so average = SUM(ride_time_min)/SUM(trips)), origin_borough uses the value 'Staten Island', and all peak/within-limit rows are included.",3
+q24,raw_schema,claude-haiku-5-5,rate_not_count,True,1,,2346,528,3.36,"SELECT ROUND(AVG(no_shows_per_1000), 1) AS avg_no_shows_per_1000 FROM provider_no_shows_monthly WHERE provider_type = 'Primary' AND month >= DATE '2023-01-01' AND month < DATE '2024-01-01'","Assumes the provider_type value is exactly 'Primary' and that the answer is the simple average of the monthly no_shows_per_1000 values for 2023, since the table has no trip counts to weight by.",3
+q25,raw_schema,claude-haiku-5-5,rate_not_count,True,1,,2345,543,3.56,"SELECT strftime(month, '%Y-%m') AS month, ROUND(no_shows_per_1000, 1) AS no_shows_per_1000 FROM provider_no_shows_monthly WHERE provider_type ILIKE '%broker%' AND year(month) = 2022 ORDER BY no_shows_per_1000 DESC LIMIT 1;","Assumes the provider_type value for brokers contains ""broker"" (matched case-insensitively), and that each month has one row per provider type, so the top row gives the peak month in 2022.",3
+q26,raw_schema,claude-haiku-5-5,ratio_of_sums,True,1,,2340,346,2.88,"SELECT ROUND(SUM(riders) * 1.0 / SUM(trips), 2) AS riders_per_trip FROM trips_daily WHERE service_date >= DATE '2025-01-01' AND service_date < DATE '2026-01-01'","Assumes riders per trip is total riders divided by total trips across all provider types and boroughs in 2025, computed from trips_daily as a weighted ratio rather than an average of daily ratios.",3
+q27,raw_schema,claude-haiku-5-5,ratio_of_sums,True,1,,2348,379,2.86,"SELECT ROUND(100.0 * SUM(CASE WHEN provider_type ILIKE '%broker%' THEN trips ELSE 0 END) / NULLIF(SUM(trips), 0), 1) AS broker_trip_share_pct FROM trips_daily WHERE service_date >= DATE '2025-01-01' AND service_date < DATE '2026-01-01';","Assumes trips_daily provider_type includes a Broker category (matched case-insensitively), the denominator is all provider types' trips in calendar 2025, and the share is computed from summed trips rather than averaged daily shares.",3
+q28,raw_schema,claude-haiku-5-5,time_logic,True,1,,2346,399,3.03,"SELECT CASE WHEN isodow(service_date) IN (6, 7) THEN 'Weekend' ELSE 'Weekday' END AS day_type, SUM(trips) AS total_trips FROM trips_daily WHERE service_date >= DATE '2025-01-01' AND service_date < DATE '2026-01-01' GROUP BY day_type ORDER BY day_type;","Assumes trips_daily.trips counts completed trips, weekends are Saturday and Sunday, and 2025 means service_date from 2025-01-01 through 2025-12-31 across all provider types and boroughs.",3
+q29,raw_schema,claude-haiku-5-5,time_logic,True,1,,2337,1315,6.63,"WITH bounds AS (
+  SELECT MIN(service_date) AS lo, MAX(service_date) AS hi FROM trips_daily
+),
+yearly AS (
+  SELECT YEAR(service_date) AS yr, SUM(trips) AS total_trips
+  FROM trips_daily
+  GROUP BY 1
+)
+SELECT y.yr AS year, y.total_trips AS trips
+FROM yearly y
+CROSS JOIN bounds b
+WHERE b.lo <= make_date(y.yr, 1, 1)
+  AND b.hi >= make_date(y.yr, 12, 31)
+ORDER BY y.total_trips ASC
+LIMIT 1;","Assumes ""trips"" means the total of the trips column in trips_daily across all provider types and boroughs, and ""full calendar year"" means the data covers January 1 through December 31 of that year, so partial first or last years are excluded.",3
+q30,raw_schema,claude-haiku-5-5,"cross_table,ratio_of_sums,time_logic",False,1,,2342,1125,5.27,"WITH c AS (
+  SELECT provider_type, SUM(complaints) AS complaints
+  FROM complaints_daily
+  WHERE opened_date >= DATE '2025-01-01' AND opened_date < DATE '2026-01-01'
+  GROUP BY provider_type
+),
+t AS (
+  SELECT provider_type, SUM(trips) AS trips
+  FROM trips_daily
+  WHERE service_date >= DATE '2025-01-01' AND service_date < DATE '2026-01-01'
+  GROUP BY provider_type
+),
+by_provider AS (
+  SELECT COALESCE(c.provider_type, t.provider_type) AS provider,
+         c.complaints,
+         t.trips
+  FROM c FULL OUTER JOIN t ON c.provider_type = t.provider_type
+),
+overall AS (
+  SELECT 'All providers' AS provider,
+         SUM(complaints) AS complaints,
+         SUM(trips) AS trips
+  FROM by_provider
+)
+SELECT provider,
+       complaints,
+       trips,
+       ROUND(1000.0 * complaints / trips, 1) AS complaints_per_1000_trips
+FROM (SELECT * FROM by_provider UNION ALL SELECT * FROM overall)
+ORDER BY provider;","Assumes ""last year"" means calendar 2025 (today is 2026-11-23), complaints and trips are matched by provider_type only since complaints_daily has no borough, and the rate is total complaints divided by total trips times 1,000.",3
+q31,raw_schema,claude-haiku-5-5,coverage,False,1,,2334,397,3.11,"SELECT ROUND(SUM(ride_time_min) * 1.0 / SUM(trips), 1) AS avg_ride_time_min FROM ride_time_monthly WHERE EXTRACT(YEAR FROM month) = 2025","Assumes ride_time_min is the total ride minutes per group (so the average is total minutes divided by total trips across all providers, peak hours, and boroughs) and that trips counts the trips in each group.",3
+q32,raw_schema,claude-haiku-5-5,"coverage,rate_not_count",False,1,,2343,1194,6.03,"WITH ns AS (
+  SELECT month, no_shows_per_1000
+  FROM provider_no_shows_monthly
+  WHERE provider_type = 'Broker' AND YEAR(month) = 2024
+),
+tr AS (
+  SELECT CAST(DATE_TRUNC('month', service_date) AS DATE) AS month, SUM(trips) AS trips
+  FROM trips_daily
+  WHERE provider_type = 'Broker' AND YEAR(service_date) = 2024
+  GROUP BY 1
+)
+SELECT ROUND(SUM(ns.no_shows_per_1000 * tr.trips / 1000.0), 0) AS est_broker_no_shows_2024
+FROM ns
+JOIN tr USING (month);","The no-show table only stores a monthly rate per 1,000 (assumed to be per 1,000 trips), so the count is estimated by multiplying each month's rate by that month's Broker trips from trips_daily and summing; the provider_type value 'Broker' is assumed to match exactly.",3

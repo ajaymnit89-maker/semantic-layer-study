@@ -1,0 +1,20 @@
+id,mode,model,tags,correct,attempts,error,input_tokens,output_tokens,seconds,sql,notes,repeat
+q01,semantic,claude-haiku-5-5,basic,True,1,,3980,152,2.03,SELECT SUM(trips) AS trips_2025 FROM trips_daily WHERE year(service_date) = 2025;,"Assumes ""completed trips in 2025"" means all provider types and boroughs summed from trips_daily by service_date year.",1
+q08,semantic,claude-haiku-5-5,"otp_standard,ratio_of_sums",True,1,,3983,267,2.45,SELECT 100.0 * SUM(ontime_pickups) / SUM(total_pickups) AS pickup_otp_pct_2025 FROM pickup_otp_daily WHERE standard = '20-minutes' AND year(service_date) = 2025,"Assumes the default 20-minute standard (the official MTA standard), all provider types (Primary and Broker) and all boroughs, with 2025 defined as service_date in calendar year 2025.",1
+q17,semantic,claude-haiku-5-5,"cross_table,ratio_of_sums",True,1,,3985,568,3.86,"WITH c AS (
+  SELECT SUM(complaints) AS complaints
+  FROM complaints_daily
+  WHERE year(opened_date) = 2024
+),
+t AS (
+  SELECT SUM(trips) AS trips
+  FROM trips_daily
+  WHERE year(service_date) = 2024
+)
+SELECT
+  c.complaints,
+  t.trips,
+  ROUND(1000.0 * c.complaints / t.trips, 1) AS complaint_rate_per_1000
+FROM c, t","Assumes calendar year 2024 for both complaints (by opened_date) and trips (by service_date), with complaints and trips aggregated separately before dividing, and all provider types and categories included.",1
+q24,semantic,claude-haiku-5-5,rate_not_count,True,1,,3990,299,2.6,"SELECT ROUND(AVG(no_shows_per_1000), 1) AS avg_primary_no_show_rate_per_1000 FROM provider_no_shows_monthly WHERE provider_type = 'Primary' AND year(month) = 2023;","Assumes the answer is the simple average of the 12 monthly Primary no-show rates for 2023 (rate per 1,000 scheduled trips), not a ratio of sums, since the table only contains rates.",1
+q31,semantic,claude-haiku-5-5,coverage,True,1,Model said the question cannot be answered.,3976,247,2.66,,"Ride time data (ride_time_monthly) only covers Jan 2017 to Dec 2023, so there are no 2025 records to compute average ride time for; the data would need to be extended to answer this.",1

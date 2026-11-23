@@ -1,0 +1,21 @@
+[project]
+name = "semantic-layer-study"
+version = "0.1.0"
+description = "Does a BI semantic layer make LLM text-to-SQL more accurate? An empirical study on MTA paratransit open data."
+requires-python = ">=3.12"
+dependencies = [
+    "matplotlib>=3.11.2",
+    "transit-sql",
+]
+
+[build-system]
+requires = ["uv_build>=0.13.9,<0.14.0"]
+build-backend = "uv_build"
+
+[tool.uv.sources]
+transit-sql = { path = "../transit-sql", editable = true }
+
+[dependency-groups]
+dev = [
+    "pytest>=9.2.0",
+]
